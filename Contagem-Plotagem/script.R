@@ -5,7 +5,7 @@ dados <- read.csv("dados_comparacoes.csv")
 head(dados)
 
 # Configurações gerais para os gráficos
-par(mfrow = c(2, 2))
+par(mfrow = c(2, 3))  # Mudado para 2x3 para acomodar 5 gráficos
 
 # Gráfico 1: Comparações por busca (linhas)
 plot(dados$comparacoes_lista, type = "l", col = "red", 
@@ -16,8 +16,7 @@ lines(dados$comparacoes_arvore, col = "blue")
 legend("topright", legend = c("Lista", "Árvore"), 
        col = c("red", "blue"), lty = 1, bg = "white")
 
-# Gráfico 2: Gráfico de linha estilo da imagem (MODIFICADO)
-# Selecionar 50 primeiras buscas
+# Gráfico 2: Gráfico de linha estilo da imagem
 n_buscas <- min(50, nrow(dados))
 buscas <- 1:n_buscas
 
@@ -54,11 +53,29 @@ hist(dados$comparacoes_arvore, breaks = 20,
      xlab = "Comparações", ylab = "Frequência",
      col = "lightblue")
 
-# Salvar os gráficos em arquivo PNG
-png("comparacoes_estruturas.png", width = 1200, height = 800)
-par(mfrow = c(2, 2))
+# Gráfico 5: Gráfico de barras para 30 números aleatórios
+set.seed(123)  # Para reproducibilidade
+indices_aleatorios <- sample(1:nrow(dados), 30)
+dados_aleatorios <- dados[indices_aleatorios, ]
 
-# Repetir os gráficos para o arquivo
+# Preparar dados para o gráfico de barras
+barras_dados <- matrix(c(dados_aleatorios$comparacoes_lista, 
+                         dados_aleatorios$comparacoes_arvore), 
+                       ncol = 2, byrow = FALSE)
+
+# Criar gráfico de barras lado a lado
+barpos <- barplot(t(barras_dados), beside = TRUE,
+                  col = c("lightcoral", "lightblue"),
+                  main = "Comparações em 30 Buscas Aleatórias",
+                  xlab = "Buscas Aleatórias", 
+                  ylab = "Número de Comparações",
+                  ylim = c(0, max(barras_dados) * 1.1),
+                  legend.text = c("Lista", "Árvore"),
+                  args.legend = list(x = "topright", bg = "white"))
+
+# Salvar os gráficos em arquivo PNG
+png("comparacoes_estruturas.png", width = 1500, height = 800)  # Largura aumentada
+par(mfrow = c(2, 3))  # Mudado para 2x3
 
 # Gráfico 1 no arquivo
 plot(dados$comparacoes_lista, type = "l", col = "red", 
@@ -69,7 +86,7 @@ lines(dados$comparacoes_arvore, col = "blue")
 legend("topright", legend = c("Lista", "Árvore"), 
        col = c("red", "blue"), lty = 1, bg = "white")
 
-# Gráfico 2 no arquivo - Gráfico de linha detalhado
+# Gráfico 2 no arquivo
 plot(buscas, dados$comparacoes_lista[1:n_buscas], type = "o", col = "red",
      main = "Detalhe: Comparações nas Primeiras 50 Buscas",
      xlab = "Número da Busca", ylab = "Número de Comparações",
@@ -80,15 +97,13 @@ plot(buscas, dados$comparacoes_lista[1:n_buscas], type = "o", col = "red",
 lines(buscas, dados$comparacoes_arvore[1:n_buscas], type = "o", 
       col = "blue", pch = 17, lwd = 2)
 
-# Adicionar valores nos pontos PRIMEIRO
 text(buscas, dados$comparacoes_lista[1:n_buscas], 
      dados$comparacoes_lista[1:n_buscas], pos = 3, cex = 0.6, col = "red")
 text(buscas, dados$comparacoes_arvore[1:n_buscas], 
      dados$comparacoes_arvore[1:n_buscas], pos = 3, cex = 0.6, col = "blue")
 
-# Adicionar legenda POR ÚLTIMO para ficar sobreposta
 legend("topright", legend = c("Lista", "Árvore"), 
-       col = c("red", "blue"), lty = 1, pch = c(1, 17),
+       col = c("red", "blue"), lty = 1, pch = c(16, 17),
        bg = "white", box.lwd = 1)
 
 # Gráfico 3 no arquivo
@@ -102,6 +117,16 @@ hist(dados$comparacoes_arvore, breaks = 20,
      main = "Histograma - Comparações na Árvore", 
      xlab = "Comparações", ylab = "Frequência",
      col = "lightblue")
+
+# Gráfico 5 no arquivo - Barras para 30 números aleatórios
+barpos <- barplot(t(barras_dados), beside = TRUE,
+                  col = c("lightcoral", "lightblue"),
+                  main = "Comparações em 30 Buscas Aleatórias",
+                  xlab = "Buscas Aleatórias", 
+                  ylab = "Número de Comparações",
+                  ylim = c(0, max(barras_dados) * 1.1),
+                  legend.text = c("Lista", "Árvore"),
+                  args.legend = list(x = "topright", bg = "white"))
 
 dev.off()
 
