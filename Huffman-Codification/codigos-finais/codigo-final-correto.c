@@ -1,17 +1,21 @@
+/**
+ * @file huffman_compressor.c
+ * @brief Implementação completa do Algoritmo de Huffman para compactação e descompactação
+ * @details Este programa implementa o algoritmo de Huffman para compactação e 
+ *          descompactação de arquivos de qualquer formato. O arquivo compactado 
+ *          segue o padrão .huff com cabeçalho específico contendo:
+ *          - 3 bits para indicar bits de lixo
+ *          - 13 bits para o tamanho da árvore
+ *          - Representação da árvore em pré-ordem
+ *          - Dados compactados em formato binário
+ * @author [Seu Nome]
+ * @date 2024
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <locale.h>
 #include <string.h>
-
-/*
- ============================================================================
- PROJETO: COMPACTADOR DE ARQUIVOS - ALGORITMO DE HUFFMAN
- ============================================================================
- Este programa implementa o algoritmo de Huffman para compactação e 
- descompactação de arquivos de qualquer formato. O arquivo compactado 
- segue o padrão .huff com cabeçalho específico.
- ============================================================================
-*/
 
 /*
  ============================================================================
@@ -20,7 +24,14 @@
 */
 
 /**
- * ListaNo - Nó genérico de lista encadeada
+ * @struct ListaNo
+ * @brief Nó genérico de lista encadeada
+ * 
+ * @var ListaNo::item
+ * Ponteiro genérico para o item armazenado no nó
+ * 
+ * @var ListaNo::proximo
+ * Ponteiro para o próximo nó da lista
  */
 struct ListaNo {
     void* item;
@@ -28,7 +39,20 @@ struct ListaNo {
 };
 
 /**
- * No - Representa um nó na árvore de Huffman
+ * @struct No
+ * @brief Representa um nó na árvore de Huffman
+ * 
+ * @var No::simbolo
+ * Byte/caractere representado por este nó (0-255). Para nós internos, usa '*'
+ * 
+ * @var No::frequencia
+ * Frequência de ocorrência do símbolo no arquivo original
+ * 
+ * @var No::esquerdo
+ * Ponteiro para subárvore esquerda (representa bit '0')
+ * 
+ * @var No::direito
+ * Ponteiro para subárvore direita (representa bit '1')
  */
 struct No {
     unsigned char simbolo;
@@ -43,6 +67,14 @@ struct No {
  ============================================================================
 */
 
+/**
+ * @brief Cria um novo nó de lista encadeada
+ * 
+ * @param item Ponteiro genérico para o item a ser armazenado
+ * @return Ponteiro para o novo nó criado
+ * 
+ * @note Encerra o programa em caso de falha na alocação
+ */
 struct ListaNo* criarListaNo(void* item) {
     struct ListaNo* novoNo = (struct ListaNo*)malloc(sizeof(struct ListaNo));
     if (novoNo == NULL) {
@@ -54,6 +86,16 @@ struct ListaNo* criarListaNo(void* item) {
     return novoNo;
 }
 
+/**
+ * @brief Insere um item de forma ordenada na lista encadeada
+ * 
+ * @param cabeca Ponteiro para o primeiro nó da lista
+ * @param item Item a ser inserido
+ * @param comparar Função de comparação que retorna <0 se a<b, 0 se a==b, >0 se a>b
+ * @return Ponteiro para a nova cabeça da lista (pode mudar se inserido no início)
+ * 
+ * @details A lista é mantida em ordem crescente de acordo com a função de comparação
+ */
 struct ListaNo* inserirOrdenado(struct ListaNo* cabeca, void* item, 
                                int (comparar)(void*, void*)) {
     struct ListaNo* novoNo = criarListaNo(item);
@@ -74,6 +116,14 @@ struct ListaNo* inserirOrdenado(struct ListaNo* cabeca, void* item,
     return cabeca;
 }
 
+/**
+ * @brief Remove e retorna o primeiro item da lista
+ * 
+ * @param cabeca Ponteiro duplo para a cabeça da lista
+ * @return Ponteiro para o item removido, ou NULL se a lista estiver vazia
+ * 
+ * @note O nó é liberado, mas o item não (responsabilidade do chamador)
+ */
 void* removerPrimeiroNo(struct ListaNo** cabeca) {
     if (*cabeca == NULL) {
         return NULL;
@@ -87,6 +137,13 @@ void* removerPrimeiroNo(struct ListaNo** cabeca) {
     return item;
 }
 
+/**
+ * @brief Libera toda a memória da lista encadeada
+ * 
+ * @param cabeca Ponteiro para o primeiro nó da lista
+ * 
+ * @note Libera apenas os nós da lista, não os itens contidos neles
+ */
 void liberarLista(struct ListaNo* cabeca) {
     while (cabeca != NULL) {
         struct ListaNo* temp = cabeca;
@@ -95,6 +152,12 @@ void liberarLista(struct ListaNo* cabeca) {
     }
 }
 
+/**
+ * @brief Calcula o número de elementos na lista
+ * 
+ * @param cabeca Ponteiro para o primeiro nó da lista
+ * @return Quantidade de elementos na lista
+ */
 int tamanhoLista(struct ListaNo* cabeca) {
     int count = 0;
     while (cabeca != NULL) {
@@ -110,6 +173,15 @@ int tamanhoLista(struct ListaNo* cabeca) {
  ============================================================================
 */
 
+/**
+ * @brief Cria um novo nó da árvore de Huffman
+ * 
+ * @param simbolo Byte/caractere que o nó representa
+ * @param frequencia Frequência de ocorrência do símbolo
+ * @return Ponteiro para o novo nó criado
+ * 
+ * @note Encerra o programa em caso de falha na alocação
+ */
 struct No* criarNo(unsigned char simbolo, int frequencia) {
     struct No* novoNo = (struct No*)malloc(sizeof(struct No));
     if (novoNo == NULL) {
@@ -124,6 +196,13 @@ struct No* criarNo(unsigned char simbolo, int frequencia) {
     return novoNo;
 }
 
+/**
+ * @brief Função de comparação para ordenar nós por frequência
+ * 
+ * @param a Ponteiro para o primeiro nó
+ * @param b Ponteiro para o segundo nó
+ * @return Diferença entre as frequências (negativo se a<b, positivo se a>b)
+ */
 int compararNos(void* a, void* b) {
     struct No* noA = (struct No*)a;
     struct No* noB = (struct No*)b;
@@ -136,6 +215,15 @@ int compararNos(void* a, void* b) {
  ============================================================================
 */
 
+/**
+ * @brief Conta a frequência de cada byte no arquivo
+ * 
+ * @param arquivo Ponteiro para o arquivo aberto em modo leitura binária
+ * @param frequencias Array de 256 posições que será preenchido com as frequências
+ * 
+ * @details Lê o arquivo byte a byte e incrementa o contador correspondente.
+ *          Suporta todos os valores de 0 a 255 (ASCII estendido).
+ */
 void contarFrequenciasArquivo(FILE* arquivo, int frequencias[256]) {
     for (int i = 0; i < 256; i++) {
         frequencias[i] = 0;
@@ -147,6 +235,15 @@ void contarFrequenciasArquivo(FILE* arquivo, int frequencias[256]) {
     }
 }
 
+/**
+ * @brief Constrói uma lista encadeada ordenada de nós com base nas frequências
+ * 
+ * @param frequencias Array de 256 posições contendo as frequências de cada byte
+ * @return Ponteiro para a cabeça da lista ordenada por frequência crescente
+ * 
+ * @details Cria um nó para cada byte que aparece pelo menos uma vez no arquivo
+ *          e os insere em ordem crescente de frequência
+ */
 struct ListaNo* construirListaFrequencia(int frequencias[256]) {
     struct ListaNo* cabeca = NULL;
     
@@ -165,6 +262,20 @@ struct ListaNo* construirListaFrequencia(int frequencias[256]) {
  ============================================================================
 */
 
+/**
+ * @brief Constrói a árvore de Huffman a partir da lista de frequências
+ * 
+ * @param cabeca Lista encadeada ordenada de nós por frequência
+ * @return Ponteiro para a raiz da árvore de Huffman construída
+ * 
+ * @details Algoritmo de Huffman:
+ *          1. Remove os dois nós de menor frequência
+ *          2. Cria um nó pai com frequência = soma dos filhos
+ *          3. Insere o nó pai de volta na lista ordenada
+ *          4. Repete até restar apenas um nó (a raiz)
+ * 
+ * @note A lista original é destruída no processo
+ */
 struct No* construirArvoreHuffman(struct ListaNo* cabeca) {
     if (cabeca == NULL) {
         printf("Erro: Lista de frequência vazia.\n");
@@ -194,6 +305,17 @@ struct No* construirArvoreHuffman(struct ListaNo* cabeca) {
     return raiz;
 }
 
+/**
+ * @brief Imprime a árvore de Huffman em pré-ordem
+ * 
+ * @param raiz Ponteiro para a raiz da árvore
+ * 
+ * @details Formato de impressão:
+ *          - Nós internos: '*'
+ *          - Folhas com caracteres imprimíveis: o próprio caractere
+ *          - Folhas com caracteres não-imprimíveis: \xHH (formato hexadecimal)
+ *          - Caracteres especiais: \* e \\ (com escape)
+ */
 void imprimirArvorePreOrdem(struct No* raiz) {
     if (raiz == NULL) {
         return;
@@ -213,6 +335,14 @@ void imprimirArvorePreOrdem(struct No* raiz) {
     imprimirArvorePreOrdem(raiz->direito);
 }
 
+/**
+ * @brief Libera recursivamente toda a memória da árvore
+ * 
+ * @param raiz Ponteiro para a raiz da árvore
+ * 
+ * @details Usa travessia pós-ordem para garantir que os filhos
+ *          sejam liberados antes do pai
+ */
 void liberarArvore(struct No* raiz) {
     if (raiz == NULL) {
         return;
@@ -224,6 +354,13 @@ void liberarArvore(struct No* raiz) {
     free(raiz);
 }
 
+/**
+ * @brief Imprime a tabela de frequências de forma formatada
+ * 
+ * @param cabeca Ponteiro para a lista de nós com frequências
+ * 
+ * @details Exibe três colunas: código ASCII, frequência e representação visual
+ */
 void imprimirListaFrequencia(struct ListaNo* cabeca) {
     struct ListaNo* atual = cabeca;
     printf("=== TABELA DE FREQUÊNCIAS (ASCII COMPLETO 0-255) ===\n");
@@ -246,6 +383,14 @@ void imprimirListaFrequencia(struct ListaNo* cabeca) {
  ============================================================================
 */
 
+/**
+ * @brief Calcula a altura da árvore de Huffman
+ * 
+ * @param raiz Ponteiro para a raiz da árvore
+ * @return Altura da árvore (-1 se vazia, 0 se apenas raiz, etc.)
+ * 
+ * @details A altura determina o tamanho máximo dos códigos de Huffman
+ */
 int calcularAlturaArvore(struct No* raiz) {
     if (raiz == NULL) {
         return -1;
@@ -257,6 +402,14 @@ int calcularAlturaArvore(struct No* raiz) {
     return (alturaEsquerda > alturaDireita ? alturaEsquerda : alturaDireita) + 1;
 }
 
+/**
+ * @brief Aloca memória para o dicionário de códigos
+ * 
+ * @param dicionario Array de 256 ponteiros para strings
+ * @param colunas Tamanho máximo de cada string (baseado na altura da árvore)
+ * 
+ * @note Encerra o programa em caso de falha na alocação
+ */
 void alocarDicionario(char* dicionario[256], int colunas) {
     for (int i = 0; i < 256; i++) {
         dicionario[i] = (char*)malloc(colunas * sizeof(char));
@@ -273,6 +426,20 @@ void alocarDicionario(char* dicionario[256], int colunas) {
     }
 }
 
+/**
+ * @brief Gera recursivamente os códigos de Huffman para cada símbolo
+ * 
+ * @param dicionario Array que será preenchido com os códigos
+ * @param no Nó atual sendo processado
+ * @param concatenacao String auxiliar para construir o código atual
+ * @param profundidade Profundidade atual na árvore
+ * @param colunas Tamanho máximo do código
+ * 
+ * @details Travessia em pré-ordem:
+ *          - Adiciona '0' ao descer pela esquerda
+ *          - Adiciona '1' ao descer pela direita
+ *          - Quando atinge uma folha, armazena o código completo
+ */
 void gerarDicionarioRecursivo(char* dicionario[256], struct No* no, 
                              char concatenacao[], int profundidade, int colunas) {
     if (no == NULL) {
@@ -301,11 +468,25 @@ void gerarDicionarioRecursivo(char* dicionario[256], struct No* no,
     }
 }
 
+/**
+ * @brief Gera o dicionário completo de códigos de Huffman
+ * 
+ * @param dicionario Array de 256 strings (já alocado)
+ * @param raiz Raiz da árvore de Huffman
+ * @param colunas Tamanho máximo de cada código
+ * 
+ * @details Wrapper para a função recursiva que inicializa a string auxiliar
+ */
 void gerarDicionario(char* dicionario[256], struct No* raiz, int colunas) {
     char concatenacao[colunas];
     gerarDicionarioRecursivo(dicionario, raiz, concatenacao, 0, colunas);
 }
 
+/**
+ * @brief Libera a memória alocada para o dicionário
+ * 
+ * @param dicionario Array de 256 ponteiros para strings
+ */
 void liberarDicionario(char* dicionario[256]) {
     for (int i = 0; i < 256; i++) {
         if (dicionario[i] != NULL) {
@@ -315,6 +496,13 @@ void liberarDicionario(char* dicionario[256]) {
     }
 }
 
+/**
+ * @brief Imprime o dicionário de códigos de forma formatada
+ * 
+ * @param dicionario Array com os códigos de Huffman
+ * 
+ * @details Exibe apenas os símbolos que aparecem no arquivo original
+ */
 void imprimirDicionario(char* dicionario[256]) {
     printf("=== DICIONÁRIO DE CÓDIGOS HUFFMAN ===\n");
     printf("Símbolo | Código\n");
@@ -340,6 +528,16 @@ void imprimirDicionario(char* dicionario[256]) {
  ============================================================================
 */
 
+/**
+ * @brief Codifica o arquivo usando o dicionário de Huffman
+ * 
+ * @param arquivo_entrada Arquivo original a ser codificado
+ * @param dicionario Dicionário com os códigos de Huffman
+ * @param nome_saida Nome do arquivo de saída (códigos em ASCII '0' e '1')
+ * 
+ * @details Lê o arquivo byte a byte e escreve os códigos correspondentes
+ *          como caracteres ASCII '0' e '1' (formato intermediário)
+ */
 void codificarArquivo(FILE* arquivo_entrada, char* dicionario[256], const char* nome_saida) {
     fseek(arquivo_entrada, 0, SEEK_SET);
     
@@ -365,6 +563,14 @@ void codificarArquivo(FILE* arquivo_entrada, char* dicionario[256], const char* 
     fclose(arquivo_saida);
 }
 
+/**
+ * @brief Exibe o texto codificado na tela
+ * 
+ * @param arquivo Arquivo original
+ * @param dicionario Dicionário com os códigos de Huffman
+ * 
+ * @details Útil para depuração - mostra a sequência de bits em formato ASCII
+ */
 void mostrarTextoCodificado(FILE* arquivo, char* dicionario[256]) {
     fseek(arquivo, 0, SEEK_SET);
     
@@ -386,6 +592,18 @@ void mostrarTextoCodificado(FILE* arquivo, char* dicionario[256]) {
  ============================================================================
 */
 
+/**
+ * @brief Decodifica um arquivo codificado usando a árvore de Huffman
+ * 
+ * @param arquivo_codificado Nome do arquivo com códigos ASCII ('0' e '1')
+ * @param raiz Raiz da árvore de Huffman
+ * @param nome_saida Nome do arquivo de saída decodificado
+ * 
+ * @details Percorre a árvore bit a bit:
+ *          - '0' vai para a esquerda
+ *          - '1' vai para a direita
+ *          - Ao atingir uma folha, escreve o símbolo e volta à raiz
+ */
 void decodificarArquivo(const char* arquivo_codificado, struct No* raiz, const char* nome_saida) {
     FILE* arquivo_entrada = fopen(arquivo_codificado, "r");
     if (arquivo_entrada == NULL) {
@@ -424,6 +642,15 @@ void decodificarArquivo(const char* arquivo_codificado, struct No* raiz, const c
     fclose(arquivo_saida);
 }
 
+/**
+ * @brief Decodifica e exibe o conteúdo na tela
+ * 
+ * @param arquivo_codificado Nome do arquivo codificado
+ * @param raiz Raiz da árvore de Huffman
+ * 
+ * @details Usa um arquivo temporário para armazenar o resultado
+ *          e depois o exibe na saída padrão
+ */
 void mostrarTextoDecodificado(const char* arquivo_codificado, struct No* raiz) {
     decodificarArquivo(arquivo_codificado, raiz, "temp_decodificado.txt");
     
@@ -454,6 +681,15 @@ void mostrarTextoDecodificado(const char* arquivo_codificado, struct No* raiz) {
  ============================================================================
 */
 
+/**
+ * @brief Calcula quantos bits de lixo serão necessários
+ * 
+ * @param arquivo_codificado Nome do arquivo com códigos ASCII
+ * @return Número de bits de lixo (0-7)
+ * 
+ * @details Como cada byte tem 8 bits, precisamos calcular
+ *          quantos bits vazios sobrarão no último byte
+ */
 int calcularBitsLixo(const char* arquivo_codificado) {
     FILE *arquivo = fopen(arquivo_codificado, "rb");
     if (!arquivo) return 0;
@@ -473,6 +709,14 @@ int calcularBitsLixo(const char* arquivo_codificado) {
     return lixo;
 }
 
+/**
+ * @brief Calcula o tamanho da representação da árvore em bytes
+ * 
+ * @param raiz Raiz da árvore de Huffman
+ * @return Número de bytes necessários para representar a árvore
+ * 
+ * @details Cada nó folha ocupa 2 bytes (\simbolo), cada nó interno ocupa 1 byte (*)
+ */
 int calcularTamanhoArvore(struct No* raiz) {
     if (raiz == NULL) return 0;
     
@@ -484,6 +728,16 @@ int calcularTamanhoArvore(struct No* raiz) {
     }
 }
 
+/**
+ * @brief Escreve a árvore de Huffman em pré-ordem no arquivo
+ * 
+ * @param raiz Raiz da árvore
+ * @param arquivo Arquivo de saída binário
+ * 
+ * @details Formato:
+ *          - Nós internos: um byte '*'
+ *          - Nós folha: dois bytes '\\' seguido do símbolo
+ */
 void escreverArvorePreOrdem(struct No* raiz, FILE* arquivo) {
     if (raiz == NULL) return;
     
@@ -501,6 +755,20 @@ void escreverArvorePreOrdem(struct No* raiz, FILE* arquivo) {
     escreverArvorePreOrdem(raiz->direito, arquivo);
 }
 
+/**
+ * @brief Compacta o arquivo codificado gerando o arquivo .huff final
+ * 
+ * @param arquivo_codificado Nome do arquivo com códigos ASCII
+ * @param raiz Raiz da árvore de Huffman
+ * @param arquivo_compactado Nome do arquivo .huff de saída
+ * 
+ * @details Formato do arquivo .huff:
+ *          - Byte 1-2: Cabeçalho (3 bits lixo + 13 bits tamanho árvore)
+ *          - Bytes seguintes: Árvore em pré-ordem
+ *          - Resto: Dados compactados em formato binário (8 bits por byte)
+ * 
+ * @note Converte ASCII '0'/'1' para bits reais, empacotando 8 bits por byte
+ */
 void compactarComCabecalho(const char* arquivo_codificado, struct No* raiz, const char* arquivo_compactado) {
     FILE *entrada = fopen(arquivo_codificado, "rb");
     FILE *saida = fopen(arquivo_compactado, "wb");
@@ -519,6 +787,7 @@ void compactarComCabecalho(const char* arquivo_codificado, struct No* raiz, cons
     printf("Bits de lixo: %d\n", lixo);
     printf("Tamanho da árvore: %d\n", tamanho_arvore);
     
+    // Monta cabeçalho: 3 bits lixo + 13 bits tamanho
     unsigned short cabecalho = 0;
     cabecalho |= (lixo & 0x07) << 13;
     cabecalho |= (tamanho_arvore & 0x1FFF);
@@ -530,6 +799,7 @@ void compactarComCabecalho(const char* arquivo_codificado, struct No* raiz, cons
     
     escreverArvorePreOrdem(raiz, saida);
     
+    // Converte ASCII '0'/'1' para bits binários
     int j = 7;
     unsigned char mascara, byte = 0;
     unsigned char bit;
@@ -542,7 +812,7 @@ void compactarComCabecalho(const char* arquivo_codificado, struct No* raiz, cons
             if (bit == '1') {
                 mascara = mascara << j;
                 byte = byte | mascara;
-            }
+            } 
             
             j--;
             bits_escritos++;
@@ -572,6 +842,17 @@ void compactarComCabecalho(const char* arquivo_codificado, struct No* raiz, cons
  ============================================================================
 */
 
+/**
+ * @brief Reconstrói a árvore de Huffman a partir de sua representação em pré-ordem
+ * 
+ * @param arquivo Arquivo binário aberto contendo a árvore serializada
+ * @return Ponteiro para a raiz da árvore reconstruída
+ * 
+ * @details Lê byte a byte do arquivo:
+ *          - Se encontrar '*': cria nó interno e reconstrói subárvores recursivamente
+ *          - Se encontrar '\\': lê o próximo byte como símbolo de uma folha
+ *          - Caso contrário: trata como folha direta
+ */
 struct No* reconstruirArvorePreOrdem(FILE* arquivo) {
     unsigned char simbolo_lido;
     
@@ -595,6 +876,17 @@ struct No* reconstruirArvorePreOrdem(FILE* arquivo) {
     return criarNo(simbolo_lido, 0);
 }
 
+/**
+ * @brief Lê e decodifica o cabeçalho do arquivo compactado
+ * 
+ * @param arquivo Arquivo .huff aberto
+ * @param lixo Ponteiro para armazenar o número de bits de lixo
+ * @param tamanho_arvore Ponteiro para armazenar o tamanho da árvore
+ * 
+ * @details O cabeçalho tem 2 bytes (16 bits):
+ *          - 3 bits mais significativos: bits de lixo (0-7)
+ *          - 13 bits seguintes: tamanho da árvore em bytes (0-8191)
+ */
 void lerCabecalhoCompactado(FILE* arquivo, int* lixo, int* tamanho_arvore) {
     unsigned char byte1, byte2;
     
@@ -614,6 +906,21 @@ void lerCabecalhoCompactado(FILE* arquivo, int* lixo, int* tamanho_arvore) {
     *tamanho_arvore = cabecalho & 0x1FFF;
 }
 
+/**
+ * @brief Descompacta um arquivo .huff gerando o arquivo original
+ * 
+ * @param arquivo_compactado Nome do arquivo .huff de entrada
+ * @param arquivo_saida Nome do arquivo descompactado de saída
+ * 
+ * @details Processo de descompactação:
+ *          1. Lê o cabeçalho (2 bytes)
+ *          2. Reconstrói a árvore de Huffman
+ *          3. Lê os dados compactados bit a bit
+ *          4. Percorre a árvore para decodificar cada símbolo
+ *          5. Ignora os bits de lixo no final
+ * 
+ * @note Os bits de lixo ficam no último byte e devem ser descartados
+ */
 void descompactarArquivoGeral(const char* arquivo_compactado, const char* arquivo_saida) {
     FILE *entrada = fopen(arquivo_compactado, "rb");
     if (!entrada) {
@@ -698,10 +1005,13 @@ void descompactarArquivoGeral(const char* arquivo_compactado, const char* arquiv
 
 /*
  ============================================================================
- PARTE 8: FUNÇÃO PRINCIPAL MODIFICADA
+ PARTE 8: INTERFACE DE USUÁRIO E FUNÇÕES PRINCIPAIS
  ============================================================================
 */
 
+/**
+ * @brief Exibe o menu principal do programa
+ */
 void mostrarMenu() {
     printf("\n=== COMPACTADOR HUFFMAN ===\n");
     printf("1. Compactar arquivo\n");
@@ -710,6 +1020,21 @@ void mostrarMenu() {
     printf("Escolha uma opção: ");
 }
 
+/**
+ * @brief Fluxo completo de compactação de um arquivo
+ * 
+ * @details Processo:
+ *          1. Solicita nome do arquivo ao usuário
+ *          2. Conta frequências de cada byte
+ *          3. Constrói lista ordenada de frequências
+ *          4. Gera árvore de Huffman
+ *          5. Cria dicionário de códigos
+ *          6. Codifica o arquivo em formato temporário ASCII
+ *          7. Compacta para formato binário .huff
+ *          8. Remove arquivo temporário
+ * 
+ * @note O arquivo .huff terá o mesmo nome do original com extensão .huff
+ */
 void compactarArquivo() {
     char nome_arquivo[256];
     printf("Digite o nome do arquivo para compactar: ");
@@ -765,6 +1090,14 @@ void compactarArquivo() {
     printf("Compactação concluída! Arquivo salvo como: %s\n", nome_saida);
 }
 
+/**
+ * @brief Fluxo completo de descompactação de um arquivo .huff
+ * 
+ * @details Processo:
+ *          1. Solicita nome do arquivo .huff
+ *          2. Solicita nome do arquivo de saída
+ *          3. Chama função de descompactação
+ */
 void descompactarArquivo() {
     char nome_arquivo[256];
     printf("Digite o nome do arquivo .huff para descompactar: ");
@@ -778,6 +1111,16 @@ void descompactarArquivo() {
     printf("Descompactação concluída! Arquivo salvo como: %s\n", nome_saida);
 }
 
+/**
+ * @brief Função principal do programa
+ * 
+ * @return 0 em caso de sucesso
+ * 
+ * @details Exibe menu interativo permitindo ao usuário:
+ *          - Compactar arquivos (gera .huff)
+ *          - Descompactar arquivos .huff
+ *          - Sair do programa
+ */
 int main() {
     setlocale(LC_ALL, "Portuguese");
     
